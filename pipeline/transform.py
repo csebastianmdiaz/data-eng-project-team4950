@@ -10,6 +10,7 @@ ARCHIVOS = [
     {"csv": "raw/SAU-GLOBAL-1-v48-0.csv",    "parquet": "processed/SAU-GLOBAL-1-v48-0.parquet",    "renombrar": {}},
     {"csv": "raw/SAU-HighSeas-71-v48-0.csv", "parquet": "processed/SAU-HighSeas-71-v48-0.parquet", "renombrar": {}},
     {"csv": "raw/SAU-EEZ-242-v48-0.csv",     "parquet": "processed/SAU-EEZ-242-v48-0.parquet",     "renombrar": {"fish_name": "common_name", "country": "fishing_entity"}},
+    {"csv": "raw/SAU_EEZ_848_v50-1.csv",     "parquet": "processed/SAU_EEZ_848_v50-1.parquet",     "renombrar": {}},  # ← nuevo
 ]
 
 s3 = boto3.client("s3")
