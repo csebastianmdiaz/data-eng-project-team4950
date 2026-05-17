@@ -113,14 +113,12 @@ python pipeline/setup_crawler.py
 ---
 
 ## Technical Decisions
-
-| Decision | Justification |
-|---|---|
-| Separate `raw/`, `processed/`, and `curated/` zones | Preserves original data for auditing; processed zone contains clean queryable data; curated zone contains partitioned data optimized for Athena |
-| Parquet over CSV | Columnar storage reduces bytes scanned in Athena queries; enables compression |
-| Schema alignment at transform stage | Ensures consistent column names across all four sources before cataloging |
-| Crawler points to `curated/` | Data is clean, aligned, and partitioned at this point; enables Athena to leverage partitions for faster and cheaper queries |
-| Fourth dataset (EEZ-848 USA West Coast) | Adds geographic diversity; introduces additional columns (`scientific_name`, `gear_type`, `functional_group`) that enrich analytics queries |
+ 
+- Three S3 zones (`raw/`, `processed/`, `curated/`): keeps the original files untouched in `raw/` so we can always go back to them. `processed/` holds the clean data and `curated/` holds the validated data.
+- Parquet instead of CSV: Athena only reads the columns a query needs, not the whole file. This makes queries faster and cheaper.
+- Schema alignment in `transform.py`: the EEZ-242 (Fiji) file used different column names (`fish_name`, `country`). We rename them before uploading so all four datasets share the same column names and Glue can catalog them consistently.
+- Crawler points to `curated/`: by the time the crawler runs, the data is already validated.
+- Fourth dataset (EEZ-848 USA West Coast): adds a second EEZ from a different country and region, which makes the analytics more interesting. It also brings extra columns (`scientific_name`, `gear_type`, `functional_group`) that the other files don't have.
 
 ---
 
