@@ -7,10 +7,10 @@ CRAWLER     = "fishcrawler"
 IAM_ROLE    = "arn:aws:iam::891943683988:role/LabRole"
 
 SOURCES = [
-    f"s3://{BUCKET}/curated/SAU-GLOBAL-1-v48-0.parquet",
-    f"s3://{BUCKET}/curated/SAU-HighSeas-71-v48-0.parquet",
-    f"s3://{BUCKET}/curated/SAU-EEZ-242-v48-0.parquet",
-    f"s3://{BUCKET}/curated/SAU_EEZ_848_v50-1.parquet",
+    f"s3://{BUCKET}/curated/SAU-GLOBAL-1-v48-0/",
+    f"s3://{BUCKET}/curated/SAU-HighSeas-71-v48-0/",
+    f"s3://{BUCKET}/curated/SAU-EEZ-242-v48-0/",
+    f"s3://{BUCKET}/curated/SAU_EEZ_848_v50-1/",
 ]
 
 glue = boto3.client("glue", region_name="us-east-1")
