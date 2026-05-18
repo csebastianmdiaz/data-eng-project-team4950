@@ -109,25 +109,25 @@ for name, (lo, hi) in eez_ranges.items():
 
 ---
 
-## DQ-06 — No duplicates on key combination
+## DQ-06 — Consistency between tonnes and landed_value
 
-**Columns:** composite key per file (see below)  
+**Columns:** `tonnes`, `landed_value`  
 **Files:** All four  
 **Severity:** Warning
 
-**Business justification:** A fishing entity should not report the same species catch twice for the same year, area, and gear type. Duplicate rows on these key columns would inflate aggregated totals in Athena views and QuickSight dashboards, producing incorrect business metrics without any visible error.
+**Business justification:** If a fishing entity reports a non-zero catch weight 
+(tonnes > 0), it should also report a non-zero economic value (landed_value > 0). 
+A row with measurable catch but zero landed value is suspicious — it either indicates 
+a data entry error, a transformation issue in the pipeline, or an unreported valuation. 
+While some catches may genuinely have near-zero value, an exact zero paired with a 
+positive tonnage warrants investigation before being used in economic aggregations in 
+Athena views and QuickSight dashboards. 
 
 ```python
-keys = {
-    "GLOBAL":   ['year', 'fishing_entity', 'gear_type', 'catch_type'],
-    "HighSeas": ['year', 'fishing_entity', 'common_name', 'area_name'],
-    "EEZ_Fiji": ['year', 'fishing_entity', 'common_name', 'area_name', 'gear_type'],
-    "EEZ_848":  ['year', 'fishing_entity', 'common_name', 'area_name', 'gear_type'],
-}
-for name, cols in keys.items():
-    dupes = files[name].duplicated(subset=cols).sum()
-    assert dupes == 0, \
-        f"[{name}] {dupes} duplicate rows on key columns"
+for name, df in files.items():
+    mask = (df['tonnes'] > 0) & (df['landed_value'] == 0)
+    assert mask.sum() == 0, \
+        f"[{name}] {mask.sum()} rows with tonnes > 0 but landed_value == 0"
 ```
 
 ---
