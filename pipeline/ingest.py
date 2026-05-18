@@ -31,7 +31,7 @@ for nombre, url in ARCHIVOS_WEB.items():
 
 # archivos de local
 ARCHIVOS_LOCAL = {
-    "datasets/SAU EEZ 848 v50-1.csv": "raw/SAU_EEZ_848_v50-1.csv",
+    "../datasets/SAU EEZ 848 v50-1.csv": "raw/SAU_EEZ_848_v50-1.csv",
 }
 
 for ruta_local, destino in ARCHIVOS_LOCAL.items():
