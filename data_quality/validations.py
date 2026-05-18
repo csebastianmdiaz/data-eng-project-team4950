@@ -98,20 +98,15 @@ for name, (lo, hi) in eez_ranges.items():
            passed=(failed == 0), failed_count=failed,
            total=len(valid), severity="Warning", detail=detail)
 
-#DQ-06 — No duplicates on key combination
-print("\nDQ-06: Duplicate rows on key columns...")
-keys = {
-    "GLOBAL":   ['year', 'fishing_entity', 'gear_type', 'catch_type'],
-    "HighSeas": ['year', 'fishing_entity', 'common_name', 'area_name'],
-    "EEZ_Fiji": ['year', 'fishing_entity', 'common_name', 'area_name', 'gear_type'],
-    "EEZ_848":  ['year', 'fishing_entity', 'common_name', 'area_name', 'gear_type'],
-}
-for name, cols in keys.items():
-    df     = files[name]
-    failed = int(df.duplicated(subset=cols).sum())
-    record("DQ-06", "No duplicates on key combination", name,
+#DQ-06 — Consistency between tonnes and landed_value
+print("\nDQ-06: Tonnes vs landed_value consistency...")
+for name, df in files.items():
+    mask = (df['tonnes'] > 0) & (df['landed_value'] == 0)
+    failed = int(mask.sum())
+    record("DQ-06", "If tonnes > 0 then landed_value > 0", name,
            passed=(failed == 0), failed_count=failed,
-           total=len(df), severity="Warning")
+           total=len(df), severity="Warning",
+           detail=f"{failed} rows with catch but zero value")
 
 #DQ-07 — Referential integrity of fishing entities
 print("\nDQ-07: Referential integrity...")
@@ -259,26 +254,10 @@ try:
 except Exception as e:
     print(f"WARNING: Could not upload reports to S3: {e}")
 
-#GROUP critical failures by file
-critical_failures_by_file = {}
-for r in results:
-    if r['status'] == 'FAILED' and r['severity'] == 'Critical':
-        file = r['file']
-        if file not in critical_failures_by_file:
-            critical_failures_by_file[file] = []
-        critical_failures_by_file[file].append(r['rule_id'])
-
 #MOVE TO CURATED (row-level filtering)
 print("\nMoving validated files to curated zone...")
 any_moved = False
 global_entities = set(files["GLOBAL"]['fishing_entity'].unique())
-
-keys = {
-    "GLOBAL":   ['year', 'fishing_entity', 'gear_type', 'catch_type'],
-    "HighSeas": ['year', 'fishing_entity', 'common_name', 'area_name'],
-    "EEZ_Fiji": ['year', 'fishing_entity', 'common_name', 'area_name', 'gear_type'],
-    "EEZ_848":  ['year', 'fishing_entity', 'common_name', 'area_name', 'gear_type'],
-}
 
 for name, s3_path in FILES.items():
     filename = s3_path.split('/')[-1]
@@ -291,9 +270,6 @@ for name, s3_path in FILES.items():
     if bad_cols or missing:
         print(f"  SKIPPED {filename} — structural issue: {bad_cols + missing}")
         continue
-
-    # DQ-06: DELETE duplicates before aplying mask
-    df = df.drop_duplicates(subset=keys[name], keep='first')
 
     #Filter per row
     mask_valid = df['year'].between(1950, 2018)             # DQ-01
@@ -308,6 +284,9 @@ for name, s3_path in FILES.items():
         mask_valid = mask_valid & (df['uncertainty_score'].isna() | df['uncertainty_score'].between(0, 3))
     elif name == "EEZ_848":
         mask_valid = mask_valid & (df['uncertainty_score'].isna() | df['uncertainty_score'].between(2, 4))
+
+    # DQ-06: tonnes > 0 but landed_value == 0
+    mask_valid = mask_valid & ~((df['tonnes'] > 0) & (df['landed_value'] == 0))
 
     # DQ-07: referencial integrity
     if name != "GLOBAL":
