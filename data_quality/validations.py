@@ -10,7 +10,7 @@ FILES = {
     "GLOBAL":   "s3://data-source-52143/processed/SAU-GLOBAL-1-v48-0.parquet",
     "HighSeas": "s3://data-source-52143/processed/SAU-HighSeas-71-v48-0.parquet",
     "EEZ_Fiji": "s3://data-source-52143/processed/SAU-EEZ-242-v48-0.parquet",
-    "EEZ_848":  "s3://data-source-52143/processed/SAU_EEZ_848_v50_1.parquet",
+    "EEZ_848":  "s3://data-source-52143/processed/SAU_EEZ_848_v50-1.parquet",
 }
 
 #LOAD FILES
