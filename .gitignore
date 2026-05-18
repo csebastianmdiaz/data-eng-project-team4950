@@ -1,0 +1,18 @@
+# AWS Credentials
+.aws/
+credentials
+config
+*.pem
+
+# Data
+*.csv
+*.parquet
+*.json
+!data_samples/*.csv
+!orchestration/workflow.json
+!data_quality/results.json
+
+# Python env
+venv/
+.env
+__pycache__/
