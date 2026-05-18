@@ -1,11 +1,22 @@
-Decision: Convert all source CSV files to Apache Parquet format before storing them in the processed/ zone.
-Reasons: Parquet is a columnar format: Athena only reads the columns a query needs, not the entire file. This directly reduces bytes scanned and cost. Parquet files are much smaller than csv due to built-in compression. Also, parquet preserves data types, which avoids type inference issues when querying with Athena.
+# Architecture Decision Records (ADRs)
 
-Decision: Separate the S3 bucket into three zones: raw/, processed/, and curated/.
-Reasons: raw/ preserves the original source files untouched. If something goes wrong at any stage, we can always reprocess from the original data. Then, processed/ holds the cleaned and schema-aligned parquet files. Finally, curated/ holds only data that has passed quality validations and partitioning. This is the trusted zone that feeds Athena and QuickSight.
+This document justifies the key technical decisions made throughout the pipeline development.
 
-Decision: Rename mismatched columns in SAU-EEZ-242 during the transform step, before uploading to processed/.
-Reasons: The EEZ-242 (Fiji) file uses fish_name and country instead of common_name and fishing_entity used by the other datasets. Fixing this at the transform stage ensures all four datasets share the same schema in processed/ and Glue can catalog them consistently.
+## Data Engineering (Role 1)
+| Decision | Justification |
+| :--- | :--- |
+| **Zone Separation in S3** | Separating the bucket into `raw/`, `processed/`, and `curated/` preserves original files untouched. If failures occur, we can reprocess from `raw/`. Only validated data reaches `curated/` for Athena. |
+| **CSV to Parquet Conversion** | Parquet is a columnar format. Athena only reads needed columns, reducing bytes scanned and costs. It also features built-in compression and preserves data types. |
+| **Schema Harmonization** | Renamed mismatched columns (e.g., `fish_name` to `common_name` in Fiji) and injected missing columns with nulls to ensure all datasets share a strict 17-column schema for Glue Catalog compatibility. |
 
-Decision: Add missing columns as null values with the correct data types to datasets that don't have them, so all four files share the same 17-column schema.
-Reasons: GLOBAL only has 9 columns; HighSeas has 15. Without alignment, Glue would catalog them with different schemas and cross-dataset queries would fail or return incorrect results.
+## Data Quality (Role 2)
+| Decision | Justification |
+| :--- | :--- |
+| **Row-level filtering** | Instead of rejecting an entire file for a few errors (e.g., EEZ-848 had 2.1% invalid rows), the script dynamically drops bad rows and saves the good ones, preserving 97.9% of valid data. |
+| **Pandas Asserts over External Libs** | Standard Pandas with documented assertions was chosen over Pandera/Great Expectations for lower overhead while maintaining the same technical depth and generating an automated HTML report. |
+
+## Orchestration & Security (Role 4)
+| Decision | Justification |
+| :--- | :--- |
+| **AWS Step Functions over Glue Workflows** | Step Functions provides visual debugging, explicit state transitions, native error catching (`Catch` block to `Pipeline_Failure`), and true Serverless orchestration compared to traditional Glue Workflows. |
+| **In-place Partitioning** | The partition script reads from `curated/` and writes the partitioned folders back to `curated/`, deleting the flat files. This avoids creating a 4th S3 zone, saving storage costs. |
