@@ -12,39 +12,7 @@ This folder contains the scripts responsible for the ingestion, transformation, 
 
 ## Pipeline Flow
 
-```
-[Sea Around Us URLs]         [Local file]
-        |                        |
-        v                        v
-   ingest.py  ───────────────────────────→  s3://data-source-52143/raw/
-                                                        |
-                                                        v
-                                              transform.py
-                                                        |
-                                                        v
-                                      s3://data-source-52143/processed/
-                                                        |
-                                                        v
-                                             validate.py (Role 2)
-                                             DQ rules + moves validated data
-                                                        |
-                                                        v
-                                       s3://data-source-52143/curated/
-                                                        |
-                                                        v
-                                             partition.py (Role 3)
-                                             partitions by year
-                                                        |
-                                                        v
-                                       s3://data-source-52143/curated/
-                                                        |
-                                                        v
-                                             setup_crawler.py
-                                                        |
-                                                        v
-                                           AWS Glue Data Catalog
-                                                (fishdb)
-```
+![Captura de pantalla](Data-Flow-Diagram.png)
 
 ---
 
