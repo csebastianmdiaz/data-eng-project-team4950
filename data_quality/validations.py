@@ -268,24 +268,66 @@ for r in results:
             critical_failures_by_file[file] = []
         critical_failures_by_file[file].append(r['rule_id'])
 
-#MOVE to curated the files that passed
+#MOVE TO CURATED (row-level filtering)
 print("\nMoving validated files to curated zone...")
 any_moved = False
+global_entities = set(files["GLOBAL"]['fishing_entity'].unique())
+
+keys = {
+    "GLOBAL":   ['year', 'fishing_entity', 'gear_type', 'catch_type'],
+    "HighSeas": ['year', 'fishing_entity', 'common_name', 'area_name'],
+    "EEZ_Fiji": ['year', 'fishing_entity', 'common_name', 'area_name', 'gear_type'],
+    "EEZ_848":  ['year', 'fishing_entity', 'common_name', 'area_name', 'gear_type'],
+}
+
 for name, s3_path in FILES.items():
     filename = s3_path.split('/')[-1]
-    if name in critical_failures_by_file:
-        print(f"  SKIPPED {filename} — failed: {critical_failures_by_file[name]}")
-    else:
-        copy_source = {'Bucket': BUCKET, 'Key': f'processed/{filename}'}
-        s3.copy(copy_source, BUCKET, f'curated/{filename}')
-        print(f"  Copied {filename} → curated/")
-        any_moved = True
+    df = files[name].copy()
+    original_count = len(df)
 
-#FAIL pipeline if not even a single file passed
+    # DQ-04: Schema problem, block entire file
+    bad_cols = [c for c in ['fish_name', 'country'] if c in df.columns]
+    missing  = [c for c in ['common_name', 'fishing_entity'] if c not in df.columns]
+    if bad_cols or missing:
+        print(f"  SKIPPED {filename} — structural issue: {bad_cols + missing}")
+        continue
+
+    # DQ-06: DELETE duplicates before aplying mask
+    df = df.drop_duplicates(subset=keys[name], keep='first')
+
+    #Filter per row
+    mask_valid = df['year'].between(1950, 2018)             # DQ-01
+    mask_valid = mask_valid & (df['tonnes'] >= 0)           # DQ-02
+
+    # DQ-03: NULLS in landed_value
+    if name != "EEZ_848":
+        mask_valid = mask_valid & df['landed_value'].notna()
+
+    # DQ-05: uncertainty_score out of valid range
+    if name == "EEZ_Fiji":
+        mask_valid = mask_valid & (df['uncertainty_score'].isna() | df['uncertainty_score'].between(0, 3))
+    elif name == "EEZ_848":
+        mask_valid = mask_valid & (df['uncertainty_score'].isna() | df['uncertainty_score'].between(2, 4))
+
+    # DQ-07: referencial integrity
+    if name != "GLOBAL":
+        mask_valid = mask_valid & df['fishing_entity'].isin(global_entities)
+
+    df_clean = df[mask_valid]
+    removed = original_count - len(df_clean)
+
+    if len(df_clean) == 0:
+        print(f"  SKIPPED {filename} — 0 rows passed filters")
+        continue
+
+    local_path = f"/tmp/{filename}"
+    df_clean.to_parquet(local_path, index=False)
+    s3.upload_file(local_path, BUCKET, f'curated/{filename}')
+    print(f"  Copied {filename} → curated/ ({len(df_clean)}/{original_count} rows, {removed} removed)")
+    any_moved = True
+
 if not any_moved:
-    raise Exception("DQ failed — no files passed Critical rules, curated zone not updated.")
+    raise Exception("DQ failed — no files passed row-level filters.")
 else:
-    if critical_failures_by_file:
-        print(f"\nWARNING: {len(critical_failures_by_file)} file(s) excluded from curated: {list(critical_failures_by_file.keys())}")
-    print("Curated zone updated with validated files.")
+    print("Curated zone updated with cleaned files.")
 
