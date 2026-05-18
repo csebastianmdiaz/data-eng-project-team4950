@@ -9,6 +9,8 @@ config
 *.parquet
 *.json
 !data_samples/*.csv
+!orchestration/workflow.json
+!data_quality/results.json
 
 # Python env
 venv/
