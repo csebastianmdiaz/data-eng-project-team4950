@@ -9,7 +9,7 @@
 | DQ-03 | Nulls in landed_value < 20% | EEZ-848 at limit | Critical |
 | DQ-04 | Column rename applied correctly | EEZ-242, EEZ-848 | Critical |
 | DQ-05 | Uncertainty score in valid range | EEZ-242, EEZ-848 | Warning |
-| DQ-06 | No duplicates on key combination | All | Warning |
+| DQ-06 | Consistency between tonnes and landed_value | All | Warning |
 | DQ-07 | Referential integrity of countries | HighSeas, EEZs | Warning |
 | DQ-08 | No ghost tonnes (< 1e-6) | EEZ-848 mainly | Info |
 

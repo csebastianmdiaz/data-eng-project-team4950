@@ -1,0 +1,75 @@
+{
+  "Comment": "Data Pipeline - Team 4950 Capstone",
+  "StartAt": "CSV_to_Parquet_Transform",
+  "States": {
+    "CSV_to_Parquet_Transform": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::glue:startJobRun.sync",
+      "Parameters": {
+        "JobName": "Transformation"
+      },
+      "Next": "Data_Quality_Validation",
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Next": "Pipeline_Failure"
+        }
+      ]
+    },
+    "Data_Quality_Validation": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::glue:startJobRun.sync",
+      "Parameters": {
+        "JobName": "Validations"
+      },
+      "Next": "Create_Partitions",
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Next": "Pipeline_Failure"
+        }
+      ]
+    },
+    "Create_Partitions": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::glue:startJobRun.sync",
+      "Parameters": {
+        "JobName": "Partitions"
+      },
+      "Next": "Update_Athena_Catalog",
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Next": "Pipeline_Failure"
+        }
+      ]
+    },
+    "Update_Athena_Catalog": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:glue:startCrawler",
+      "Parameters": {
+        "Name": "fishcrawler"
+      },
+      "End": true,
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Next": "Pipeline_Failure"
+        }
+      ]
+    },
+    "Pipeline_Failure": {
+      "Type": "Fail",
+      "Error": "PipelineError",
+      "Cause": "One of the Glue Jobs or the Crawler failed."
+    }
+  }
+}
